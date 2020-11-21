@@ -88,7 +88,8 @@ void ST7789_Init(void){
 void ST7789_Select(void) {
 	
     #ifdef CS_PORT
-			HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);		
+			HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_RESET);
+			// CS_GPIO_Port->BSRR = ( CS_Pin << 16 );
 	#endif
 	
 }
@@ -101,7 +102,8 @@ void ST7789_Select(void) {
 void ST7789_Unselect(void) {
 	
     #ifdef CS_PORT
-			HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);	
+			HAL_GPIO_WritePin(CS_GPIO_Port, CS_Pin, GPIO_PIN_SET);
+			// CS_GPIO_Port->BSRR = CS_Pin;
 	#endif
 	
 }
@@ -188,6 +190,7 @@ __inline void ST7789_SendCmd(uint8_t Cmd){
 	
 	// pin DC LOW
 	HAL_GPIO_WritePin(DC_GPIO_Port, DC_Pin, GPIO_PIN_RESET);
+	//DC_GPIO_Port->BSRR = ( DC_Pin << 16 );
 	
 	//-- если захотим переделать под HAL ------------------	
 	#ifdef ST7789_SPI_HAL
@@ -209,7 +212,7 @@ __inline void ST7789_SendCmd(uint8_t Cmd){
 			SET_BIT(ST7789_SPI_CMSIS->CR1, SPI_CR1_SPE);	// ST7789_SPI_CMSIS->CR1 |= SPI_CR1_SPE;
 			
 			// Ждем, пока не освободится буфер передатчика
-			// while((ST7789_SPI_CMSIS->SR&SPI_SR_BSY)){};
+			//while((ST7789_SPI_CMSIS->SR&SPI_SR_BSY)){};
 		
 			// передаем 1 байт информации--------------
 			*((__IO uint8_t *)&ST7789_SPI_CMSIS->DR) = Cmd;
@@ -246,7 +249,11 @@ __inline void ST7789_SendCmd(uint8_t Cmd){
 			
 	#endif
 	//-----------------------------------------------------------------------------------
-
+	
+	// pin DC HIGH
+	HAL_GPIO_WritePin(DC_GPIO_Port, DC_Pin, GPIO_PIN_SET);
+	//DC_GPIO_Port->BSRR = DC_Pin;
+	
 }
 //==============================================================================
 
@@ -255,9 +262,6 @@ __inline void ST7789_SendCmd(uint8_t Cmd){
 // Процедура отправки данных (параметров) в дисплей 1 BYTE
 //==============================================================================
 __inline void ST7789_SendData(uint8_t Data ){
-	
-	// pin DC HIGH
-	HAL_GPIO_WritePin(DC_GPIO_Port, DC_Pin, GPIO_PIN_SET);
 	
 	//-- если захотим переделать под HAL ------------------
 	#ifdef ST7789_SPI_HAL
@@ -326,9 +330,6 @@ __inline void ST7789_SendData(uint8_t Data ){
 // Процедура отправки данных (параметров) в дисплей MASS
 //==============================================================================
 __inline void ST7789_SendDataMASS(uint8_t* buff, size_t buff_size){
-	
-	// pin DC HIGH
-	HAL_GPIO_WritePin(DC_GPIO_Port, DC_Pin, GPIO_PIN_SET);
 	
 	//-- если захотим переделать под HAL ------------------
 	#ifdef ST7789_SPI_HAL
