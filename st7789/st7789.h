@@ -3,7 +3,7 @@
   * @file 			( фаил ):   ST7789.h
   * @brief 		( описание ):  	
   ******************************************************************************
-  * @attention 	( внимание ):
+  * @attention 	( внимание ):	 author: Golinskiy Konstantin	e-mail: golinskiy.konstantin@gmail.com
   ******************************************************************************
   
  */
@@ -57,10 +57,10 @@ extern uint16_t ST7789_Width, ST7789_Height;
 			#define DC_Pin			GPIO_PIN_5
 		#endif
 		
-		#if defined (RES_GPIO_Port)
+		#if defined (RST_GPIO_Port)
 		#else
-			#define RES_GPIO_Port   GPIOB
-			#define RES_Pin			GPIO_PIN_14
+			#define RST_GPIO_Port   GPIOB
+			#define RST_Pin			GPIO_PIN_14
 		#endif
 		
 		//--  Cесли используем порт CS для выбора устройства тогда раскомментировать ------------
@@ -83,8 +83,8 @@ extern uint16_t ST7789_Width, ST7789_Height;
 		//-- нужное оставляем другое коментируем ( важно должно быть только один выбран )---------
 		
 		//#define	ST7789_IS_135X240		// 1.14" 135 x 240 ST7789 
-		//#define	ST7789_IS_240X240		// 1.3" 240 x 240 ST7789 		
-		#define	ST7789_IS_240X320		// 2" 240 x 320 ST7789
+		#define	ST7789_IS_240X240		// 1.3" 240 x 240 ST7789 		
+		//#define	ST7789_IS_240X320		// 2" 240 x 320 ST7789
 		
 		//=============================================================================
 		
@@ -432,14 +432,14 @@ void ST7789_DrawCircle(int16_t x0, int16_t y0, int16_t radius, uint16_t color);
 //==============================================================================
 // Процедура рисования символа ( 1 буква или знак )
 //==============================================================================
-char ST7789_DrawChar(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColor, uint8_t TransparentBg, FontDef_t* Font, uint8_t multiplier, unsigned char ch);
+void ST7789_DrawChar(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColor, uint8_t TransparentBg, FontDef_t* Font, uint8_t multiplier, unsigned char ch);
 //==============================================================================
 
 
 //==============================================================================
 // Процедура рисования строки
 //==============================================================================
-char ST7789_print(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColor, uint8_t TransparentBg, FontDef_t* Font, uint8_t multiplier, char *str);
+void ST7789_print(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColor, uint8_t TransparentBg, FontDef_t* Font, uint8_t multiplier, char *str);
 //==============================================================================
 
 
@@ -456,8 +456,6 @@ void ST7789_rotation( uint8_t rotation );
 //==============================================================================
 void ST7789_DrawBitmap(int16_t x, int16_t y, const unsigned char* bitmap, int16_t w, int16_t h, uint16_t color);
 //==============================================================================
-
-
 
 
 /* C++ detection */
