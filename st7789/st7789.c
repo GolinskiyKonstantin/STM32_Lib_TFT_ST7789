@@ -1069,6 +1069,8 @@ void ST7789_print(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColor, 
 		multiplier = 1;
 	}
 	
+	unsigned char buff_char;
+	
 	uint16_t len = strlen(str);
 	
 	while (len--) {
@@ -1086,26 +1088,29 @@ void ST7789_print(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColor, 
 					// увеличиваем массив так как нам нужен второй байт
 					str++;
 					// проверяем второй байт там сам символ
-					if ((uint8_t)*str == 0x81) { *str = 0xA8; break; }		// байт символа Ё ( если нужнф еще символы добавляем тут и в функции DrawChar() )
-					if ((uint8_t)*str >= 0x90 && (uint8_t)*str <= 0xBF){ *str = (*str) + 0x30; }	// байт символов А...Я а...п  делаем здвиг на +48
+					if ((uint8_t)*str == 0x81) { buff_char = 0xA8; break; }		// байт символа Ё ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					if ((uint8_t)*str >= 0x90 && (uint8_t)*str <= 0xBF){ buff_char = (*str) + 0x30; }	// байт символов А...Я а...п  делаем здвиг на +48
 					break;
 				}
 				case 0xD1: {
 					// увеличиваем массив так как нам нужен второй байт
 					str++;
 					// проверяем второй байт там сам символ
-					if ((uint8_t)*str == 0x91) { *str = 0xB8; break; }		// байт символа ё ( если нужнф еще символы добавляем тут и в функции DrawChar() )
-					if ((uint8_t)*str >= 0x80 && (uint8_t)*str <= 0x8F){ *str = (*str) + 0x70; }	// байт символов п...я	елаем здвиг на +112
+					if ((uint8_t)*str == 0x91) { buff_char = 0xB8; break; }		// байт символа ё ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					if ((uint8_t)*str >= 0x80 && (uint8_t)*str <= 0x8F){ buff_char = (*str) + 0x70; }	// байт символов п...я	елаем здвиг на +112
 					break;
 				}
 			}
 			// уменьшаем еще переменную так как израсходывали 2 байта для кириллицы
 			len--;
+			
+			ST7789_DrawChar(x, y, TextColor, BgColor, TransparentBg, Font, multiplier, buff_char);
 		}
 		//---------------------------------------------------------------------
+		else{
+			ST7789_DrawChar(x, y, TextColor, BgColor, TransparentBg, Font, multiplier, *str);
+		}
 		
-		ST7789_DrawChar(x, y, TextColor, BgColor, TransparentBg, Font, multiplier, *str);
-			
 		x = x + (Font->FontWidth * multiplier);
 		/* Increase string pointer */
 		str++;
