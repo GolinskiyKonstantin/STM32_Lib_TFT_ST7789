@@ -1030,6 +1030,33 @@ void ST7789_DrawChar(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColo
 				}
 				//-------------------------------------------------------------------
 				
+				//----  Украинская раскладка ----------------------------------------------------
+				else if( (uint8_t) ch == 170 ){	// 168 символ по ASCII - Є
+					// 162 эллемент ( символ Є )
+					b = Font->data[( 162 ) * Font->FontHeight + i];
+				}
+				else if( (uint8_t) ch == 175 ){	// 184 символ по ASCII - Ї
+					// 163 эллемент  ( символ Ї )
+					b = Font->data[( 163 ) * Font->FontHeight + i];
+				}
+				else if( (uint8_t) ch == 178 ){	// 168 символ по ASCII - І
+					// 164 эллемент ( символ І )
+					b = Font->data[( 164 ) * Font->FontHeight + i];
+				}
+				else if( (uint8_t) ch == 179 ){	// 184 символ по ASCII - і
+					// 165 эллемент  ( символ і )
+					b = Font->data[( 165 ) * Font->FontHeight + i];
+				}
+				else if( (uint8_t) ch == 186 ){	// 184 символ по ASCII - є
+					// 166 эллемент  ( символ є )
+					b = Font->data[( 166 ) * Font->FontHeight + i];
+				}
+				else if( (uint8_t) ch == 191 ){	// 168 символ по ASCII - ї
+					// 167 эллемент ( символ ї )
+					b = Font->data[( 167 ) * Font->FontHeight + i];
+				}
+				//-----------------------------------------------------------------------------
+			
 				for (j = 0; j < Font->FontWidth; j++) {
 					
 					if ((b << j) & 0x8000) {
@@ -1082,25 +1109,32 @@ void ST7789_print(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColor, 
 		// если он больше либо равен 0xC0 ( первый байт в кириллеце будет равен 0xD0 либо 0xD1 именно в алфавите )
 		if ( (uint8_t)*str >= 0xC0 ){	// код 0xC0 соответствует символу кириллица 'A' по ASCII Win-1251
 			
-			// проверяем какой именно байт первый 0xD0 либо 0xD1
+			// проверяем какой именно байт первый 0xD0 либо 0xD1---------------------------------------------
 			switch ((uint8_t)*str) {
 				case 0xD0: {
 					// увеличиваем массив так как нам нужен второй байт
 					str++;
 					// проверяем второй байт там сам символ
-					if ((uint8_t)*str == 0x81) { buff_char = 0xA8; break; }		// байт символа Ё ( если нужнф еще символы добавляем тут и в функции DrawChar() )
 					if ((uint8_t)*str >= 0x90 && (uint8_t)*str <= 0xBF){ buff_char = (*str) + 0x30; }	// байт символов А...Я а...п  делаем здвиг на +48
+					else if ((uint8_t)*str == 0x81) { buff_char = 0xA8; break; }		// байт символа Ё ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x84) { buff_char = 0xAA; break; }		// байт символа Є ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x86) { buff_char = 0xB2; break; }		// байт символа І ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x87) { buff_char = 0xAF; break; }		// байт символа Ї ( если нужнф еще символы добавляем тут и в функции DrawChar() )
 					break;
 				}
 				case 0xD1: {
 					// увеличиваем массив так как нам нужен второй байт
 					str++;
 					// проверяем второй байт там сам символ
-					if ((uint8_t)*str == 0x91) { buff_char = 0xB8; break; }		// байт символа ё ( если нужнф еще символы добавляем тут и в функции DrawChar() )
 					if ((uint8_t)*str >= 0x80 && (uint8_t)*str <= 0x8F){ buff_char = (*str) + 0x70; }	// байт символов п...я	елаем здвиг на +112
+					else if ((uint8_t)*str == 0x91) { buff_char = 0xB8; break; }		// байт символа ё ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x94) { buff_char = 0xBA; break; }		// байт символа є ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x96) { buff_char = 0xB3; break; }		// байт символа і ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x97) { buff_char = 0xBF; break; }		// байт символа ї ( если нужнф еще символы добавляем тут и в функции DrawChar() )
 					break;
 				}
 			}
+			//------------------------------------------------------------------------------------------------
 			// уменьшаем еще переменную так как израсходывали 2 байта для кириллицы
 			len--;
 			
@@ -1311,6 +1345,135 @@ void ST7789_DrawBitmap(int16_t x, int16_t y, const unsigned char* bitmap, int16_
 }
 //==============================================================================
 
+
+//==============================================================================
+// Процедура рисования прямоугольник с закругленніми краями ( заполненый )
+//==============================================================================
+void ST7789_DrawFillRoundRect(int16_t x, int16_t y, uint16_t width, uint16_t height, int16_t cornerRadius, uint16_t color) {
+	
+	int16_t max_radius = ((width < height) ? width : height) / 2; // 1/2 minor axis
+  if (cornerRadius > max_radius){
+    cornerRadius = max_radius;
+	}
+	
+  ST7789_DrawRectangleFilled(x + cornerRadius, y, x + cornerRadius + width - 2 * cornerRadius, y + height, color);
+  // draw four corners
+  ST7789_DrawFillCircleHelper(x + width - cornerRadius - 1, y + cornerRadius, cornerRadius, 1, height - 2 * cornerRadius - 1, color);
+  ST7789_DrawFillCircleHelper(x + cornerRadius, y + cornerRadius, cornerRadius, 2, height - 2 * cornerRadius - 1, color);
+}
+//==============================================================================
+
+//==============================================================================
+// Процедура рисования половины окружности ( правая или левая ) ( заполненый )
+//==============================================================================
+void ST7789_DrawFillCircleHelper(int16_t x0, int16_t y0, int16_t r, uint8_t corners, int16_t delta, uint16_t color) {
+
+  int16_t f = 1 - r;
+  int16_t ddF_x = 1;
+  int16_t ddF_y = -2 * r;
+  int16_t x = 0;
+  int16_t y = r;
+  int16_t px = x;
+  int16_t py = y;
+
+  delta++; // Avoid some +1's in the loop
+
+  while (x < y) {
+    if (f >= 0) {
+      y--;
+      ddF_y += 2;
+      f += ddF_y;
+    }
+    x++;
+    ddF_x += 2;
+    f += ddF_x;
+
+    if (x < (y + 1)) {
+      if (corners & 1){
+        ST7789_DrawLine(x0 + x, y0 - y, x0 + x, y0 - y - 1 + 2 * y + delta, color);
+			}
+      if (corners & 2){
+        ST7789_DrawLine(x0 - x, y0 - y, x0 - x, y0 - y - 1 + 2 * y + delta, color);
+			}
+    }
+    if (y != py) {
+      if (corners & 1){
+        ST7789_DrawLine(x0 + py, y0 - px, x0 + py, y0 - px - 1 + 2 * px + delta, color);
+			}
+      if (corners & 2){
+        ST7789_DrawLine(x0 - py, y0 - px, x0 - py, y0 - px - 1 + 2 * px + delta, color);
+			}
+			py = y;
+    }
+    px = x;
+  }
+}
+//==============================================================================																		
+
+//==============================================================================
+// Процедура рисования четверти окружности (закругление, дуга) ( ширина 1 пиксель)
+//==============================================================================
+void ST7789_DrawCircleHelper(int16_t x0, int16_t y0, int16_t radius, int8_t quadrantMask, uint16_t color)
+{
+    int16_t f = 1 - radius ;
+    int16_t ddF_x = 1;
+    int16_t ddF_y = -2 * radius;
+    int16_t x = 0;
+    int16_t y = radius;
+
+    while (x <= y) {
+        if (f >= 0) {
+            y--;
+            ddF_y += 2;
+            f += ddF_y;
+        }
+				
+        x++;
+        ddF_x += 2;
+        f += ddF_x;
+
+        if (quadrantMask & 0x4) {
+            ST7789_DrawPixel(x0 + x, y0 + y, color);
+            ST7789_DrawPixel(x0 + y, y0 + x, color);;
+        }
+        if (quadrantMask & 0x2) {
+			ST7789_DrawPixel(x0 + x, y0 - y, color);
+            ST7789_DrawPixel(x0 + y, y0 - x, color);
+        }
+        if (quadrantMask & 0x8) {
+			ST7789_DrawPixel(x0 - y, y0 + x, color);
+            ST7789_DrawPixel(x0 - x, y0 + y, color);
+        }
+        if (quadrantMask & 0x1) {
+            ST7789_DrawPixel(x0 - y, y0 - x, color);
+            ST7789_DrawPixel(x0 - x, y0 - y, color);
+        }
+    }
+}
+//==============================================================================		
+
+//==============================================================================
+// Процедура рисования прямоугольник с закругленніми краями ( пустотелый )
+//==============================================================================
+void ST7789_DrawRoundRect(int16_t x, int16_t y, uint16_t width, uint16_t height, int16_t cornerRadius, uint16_t color) {
+	
+	int16_t max_radius = ((width < height) ? width : height) / 2; // 1/2 minor axis
+  if (cornerRadius > max_radius){
+    cornerRadius = max_radius;
+	}
+	
+  ST7789_DrawLine(x + cornerRadius, y, x + cornerRadius + width -1 - 2 * cornerRadius, y, color);         // Top
+  ST7789_DrawLine(x + cornerRadius, y + height - 1, x + cornerRadius + width - 1 - 2 * cornerRadius, y + height - 1, color); // Bottom
+  ST7789_DrawLine(x, y + cornerRadius, x, y + cornerRadius + height - 1 - 2 * cornerRadius, color);         // Left
+  ST7789_DrawLine(x + width - 1, y + cornerRadius, x + width - 1, y + cornerRadius + height - 1 - 2 * cornerRadius, color); // Right
+	
+  // draw four corners
+	ST7789_DrawCircleHelper(x + cornerRadius, y + cornerRadius, cornerRadius, 1, color);
+  ST7789_DrawCircleHelper(x + width - cornerRadius - 1, y + cornerRadius, cornerRadius, 2, color);
+	ST7789_DrawCircleHelper(x + width - cornerRadius - 1, y + height - cornerRadius - 1, cornerRadius, 4, color);
+  ST7789_DrawCircleHelper(x + cornerRadius, y + height - cornerRadius - 1, cornerRadius, 8, color);
+}
+//==============================================================================
 
 
 
