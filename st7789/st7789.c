@@ -17,6 +17,21 @@ uint16_t ST7789_Y_Start = ST7789_YSTART;
 
 uint16_t ST7789_Width, ST7789_Height;
 
+
+static void ST7789_ExecuteCommandList(const uint8_t *addr);
+static void ST7789_Unselect(void);
+static void ST7789_Select(void);
+static void ST7789_SendCmd(uint8_t Cmd);
+static void ST7789_SendData(uint8_t Data );
+static void ST7789_SendDataMASS(uint8_t* buff, size_t buff_size);
+static void ST7789_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1);
+static void ST7789_RamWrite(uint16_t *pBuff, uint32_t Len);
+static void ST7789_ColumnSet(uint16_t ColumnStart, uint16_t ColumnEnd);
+static void ST7789_RowSet(uint16_t RowStart, uint16_t RowEnd);
+static void SwapInt16Values(int16_t *pValue1, int16_t *pValue2);
+static void ST7789_DrawLine_Slow(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color);
+
+
 //==== данные для инициализации дисплея ST7789_240X320 ==========
 
 // инициализация для всех дисплеев одна, так как драйвер расчитан на максимальный размер 240x320
@@ -84,7 +99,7 @@ void ST7789_Init(void){
 //==============================================================================
 // Процедура управления SPI
 //==============================================================================
-void ST7789_Select(void) {
+static void ST7789_Select(void) {
 	
     #ifdef CS_PORT
 	
@@ -108,7 +123,7 @@ void ST7789_Select(void) {
 //==============================================================================
 // Процедура управления SPI
 //==============================================================================
-void ST7789_Unselect(void) {
+static void ST7789_Unselect(void) {
 	
     #ifdef CS_PORT
 	
@@ -206,7 +221,7 @@ void ST7789_HardReset(void){
 //==============================================================================
 // Процедура отправки команды в дисплей
 //==============================================================================
-__inline void ST7789_SendCmd(uint8_t Cmd){	
+__inline static void ST7789_SendCmd(uint8_t Cmd){	
 		
 	//-- если захотим переделать под HAL ------------------	
 	#ifdef ST7789_SPI_HAL
@@ -297,7 +312,7 @@ __inline void ST7789_SendCmd(uint8_t Cmd){
 //==============================================================================
 // Процедура отправки данных (параметров) в дисплей 1 BYTE
 //==============================================================================
-__inline void ST7789_SendData(uint8_t Data ){
+__inline static void ST7789_SendData(uint8_t Data ){
 	
 	//-- если захотим переделать под HAL ------------------
 	#ifdef ST7789_SPI_HAL
@@ -376,7 +391,7 @@ __inline void ST7789_SendData(uint8_t Data ){
 //==============================================================================
 // Процедура отправки данных (параметров) в дисплей MASS
 //==============================================================================
-__inline void ST7789_SendDataMASS(uint8_t* buff, size_t buff_size){
+__inline static void ST7789_SendDataMASS(uint8_t* buff, size_t buff_size){
 	
 	//-- если захотим переделать под HAL ------------------
 	#ifdef ST7789_SPI_HAL
@@ -576,7 +591,7 @@ void ST7789_FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
 //==============================================================================
 // Процедура установка границ экрана для заполнения
 //==============================================================================
-void ST7789_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1){
+static void ST7789_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1){
 	
 	ST7789_Select();
 	
@@ -595,7 +610,7 @@ void ST7789_SetWindow(uint16_t x0, uint16_t y0, uint16_t x1, uint16_t y1){
 //==============================================================================
 // Процедура записи данных в дисплей
 //==============================================================================
-void ST7789_RamWrite(uint16_t *pBuff, uint32_t Len){
+static void ST7789_RamWrite(uint16_t *pBuff, uint32_t Len){
 	
   ST7789_Select();
 	
@@ -1475,7 +1490,77 @@ void ST7789_DrawRoundRect(int16_t x, int16_t y, uint16_t width, uint16_t height,
 }
 //==============================================================================
 
+//==============================================================================
+// Процедура рисования линия толстая ( последний параметр толщина )
+//==============================================================================
+void ST7789_DrawLineThick(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t color, uint8_t thick) {
+	const int16_t deltaX = abs(x2 - x1);
+	const int16_t deltaY = abs(y2 - y1);
+	const int16_t signX = x1 < x2 ? 1 : -1;
+	const int16_t signY = y1 < y2 ? 1 : -1;
 
+	int16_t error = deltaX - deltaY;
+
+	if (thick > 1){
+		ST7789_DrawCircleFilled(x2, y2, thick >> 1, color);
+	}
+	else{
+		ST7789_DrawPixel(x2, y2, color);
+	}
+
+	while (x1 != x2 || y1 != y2) {
+		if (thick > 1){
+			ST7789_DrawCircleFilled(x1, y1, thick >> 1, color);
+		}
+		else{
+			ST7789_DrawPixel(x1, y1, color);
+		}
+
+		const int16_t error2 = error * 2;
+		if (error2 > -deltaY) {
+			error -= deltaY;
+			x1 += signX;
+		}
+		if (error2 < deltaX) {
+			error += deltaX;
+			y1 += signY;
+		}
+	}
+}
+//==============================================================================		
+
+//==============================================================================
+// Процедура рисования дуга толстая ( часть круга )
+//==============================================================================
+void ST7789_DrawArc(int16_t x0, int16_t y0, int16_t radius, int16_t startAngle, int16_t endAngle, uint16_t color, uint8_t thick) {
+	
+	int16_t xLast = -1, yLast = -1;
+	startAngle -= 90;
+	endAngle -= 90;
+
+	for (int16_t angle = startAngle; angle <= endAngle; angle += 2) {
+		float angleRad = (float) angle * PI / 180;
+		int x = cos(angleRad) * radius + x0;
+		int y = sin(angleRad) * radius + y0;
+
+		if (xLast == -1 || yLast == -1) {
+			xLast = x;
+			yLast = y;
+			continue;
+		}
+
+		if (thick > 1){
+			ST7789_DrawLineThick(xLast, yLast, x, y, color, thick);
+		}
+		else{
+			ST7789_DrawLine(xLast, yLast, x, y, color);
+		}
+
+		xLast = x;
+		yLast = y;
+	}
+}
+//==============================================================================
 
 
 
