@@ -15,8 +15,13 @@
 uint16_t ST7789_X_Start = ST7789_XSTART;	
 uint16_t ST7789_Y_Start = ST7789_YSTART;
 
-uint16_t ST7789_Width, ST7789_Height;
+uint16_t ST7789_Width = 0;
+uint16_t ST7789_Height = 0;
 
+#if FRAME_BUFFER
+// массив буфер кадра
+	uint16_t buff_frame[ST7789_WIDTH*ST7789_HEIGHT] = { 0x0000, };
+#endif
 
 static void ST7789_ExecuteCommandList(const uint8_t *addr);
 static void ST7789_Unselect(void);
@@ -80,17 +85,20 @@ void ST7789_Init(void){
 	// Задержка после подачи питания
 	// если при старте не всегда запускаеться дисплей увеличиваем время задержки
 	HAL_Delay(200);	
-
+	
 	ST7789_Width = ST7789_WIDTH;
 	ST7789_Height = ST7789_HEIGHT;
-
-
-    ST7789_Select();
 	
-    ST7789_HardReset(); 
-    ST7789_ExecuteCommandList(init_cmds);
+  ST7789_Select();
+
+  ST7789_HardReset(); 
+  ST7789_ExecuteCommandList(init_cmds);
 	
-    ST7789_Unselect();
+  ST7789_Unselect();
+	
+#if FRAME_BUFFER
+	ST7789_ClearFrameBuffer();
+#endif
 
 }
 //==============================================================================
@@ -194,13 +202,22 @@ void ST7789_DrawImage(uint16_t x, uint16_t y, uint16_t w, uint16_t h, const uint
 		return;
 	}
 	
+#if FRAME_BUFFER	// если включен буфер кадра
+		for( uint16_t i = 0; i < h; i++ ){
+			for( uint16_t j = 0; j < w; j++ ){
+				buff_frame[( y + i ) * ST7789_Width + x + j] = *data;
+				data++;
+			}
+		}
+#else	//если попиксельный вывод
     ST7789_SetWindow(x, y, x+w-1, y+h-1);
 	
-	ST7789_Select();
+		ST7789_Select();
 	
     ST7789_SendDataMASS((uint8_t*)data, sizeof(uint16_t)*w*h);
 	
     ST7789_Unselect();
+#endif
 }
 //==============================================================================
 
@@ -577,13 +594,17 @@ void ST7789_FillRect(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t color)
 	  h = ST7789_Height - y;
   }
   
+#if FRAME_BUFFER	// если включен буфер кадра
+	for( uint16_t i = 0; i < h; i++ ){
+		for( uint16_t j = 0; j < w; j++ ){
+			buff_frame[( y + i ) * ST7789_Width + x + j] = ((color & 0xFF)<<8) | (color >> 8 );
+		}
+	}
+#else	//если попиксельный вывод
   ST7789_SetWindow(x, y, x + w - 1, y + h - 1);
-  
-//  for (uint32_t i = 0; i < (h * w); i++){
-//	  ST7789_RamWrite(&color, 1);
-//  }
 		
-  ST7789_RamWrite(&color, (h * w)); 
+  ST7789_RamWrite(&color, (h * w));
+#endif	
 }
 //==============================================================================
 
@@ -619,8 +640,6 @@ static void ST7789_RamWrite(uint16_t *pBuff, uint32_t Len){
   buff[1] = *pBuff & 0xFF;
 	
   while (Len--){
-//    ST7789_SendData( buff[0] );  
-//    ST7789_SendData( buff[1] );
 	  ST7789_SendDataMASS( buff, 2);
   } 
 	
@@ -827,6 +846,22 @@ void ST7789_DrawLine(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16_t co
 
 
 //==============================================================================
+// Процедура рисования линии с указаным углом и длиной
+//==============================================================================
+void ST7789_DrawLineWithAngle(int16_t x, int16_t y, uint16_t length, double angle_degrees, uint16_t color) {
+    // Преобразование угла в радианы
+    double angle_radians = (360.0 - angle_degrees) * PI / 180.0;
+
+    // Вычисление конечных координат
+    int16_t x2 = x + length * cos(angle_radians) + 0.5;
+    int16_t y2 = y + length * sin(angle_radians) + 0.5;
+
+    // Используем существующую функцию для рисования линии
+    ST7789_DrawLine(x, y, x2, y2, color);
+}
+//==============================================================================
+
+//==============================================================================
 // Процедура рисования треугольника ( пустотелый )
 //==============================================================================
 void ST7789_DrawTriangle(uint16_t x1, uint16_t y1, uint16_t x2, uint16_t y2, uint16_t x3, uint16_t y3, uint16_t color){
@@ -911,9 +946,13 @@ void ST7789_DrawPixel(int16_t x, int16_t y, uint16_t color){
   if ((x < 0) ||(x >= ST7789_Width) || (y < 0) || (y >= ST7789_Height)){
     return;
   }
-
+	
+#if FRAME_BUFFER	// если включен буфер кадра
+	buff_frame[y * ST7789_Width + x] = ((color & 0xFF)<<8) | (color >> 8 );
+#else	//если попиксельный вывод
   ST7789_SetWindow(x, y, x, y);
   ST7789_RamWrite(&color, 1);
+#endif
 }
 //==============================================================================
 
@@ -996,6 +1035,79 @@ void ST7789_DrawCircle(int16_t x0, int16_t y0, int16_t radius, uint16_t color) {
     delta += 2 * (x - y);
     --y;
   }
+}
+//==============================================================================
+
+
+//==============================================================================
+// рисуем элипс
+//==============================================================================
+void ST7789_DrawEllipse(int16_t x0, int16_t y0, int16_t radiusX, int16_t radiusY, uint16_t color) {
+    int x, y;
+    for (float angle = 0; angle <= 360; angle += 0.1) {
+        x = x0 + radiusX * cos(angle * PI / 180);
+        y = y0 + radiusY * sin(angle * PI / 180);
+        ST7789_DrawPixel(x, y, color);
+    }
+}
+//==============================================================================
+
+
+//==============================================================================
+// рисуем элипс под указаным углом наклона
+//==============================================================================
+void ST7789_DrawEllipseWithAngle(int16_t x0, int16_t y0, int16_t radiusX, int16_t radiusY, float angle_degrees, uint16_t color) {
+    float cosAngle = cos((360.0 - angle_degrees) * PI / 180);
+    float sinAngle = sin((360.0 - angle_degrees) * PI / 180);
+
+    for (int16_t t = 0; t <= 360; t++) {
+        float radians = t * PI / 180.0;
+        int16_t x = radiusX * cos(radians);
+        int16_t y = radiusY * sin(radians);
+
+        int16_t xTransformed = x0 + cosAngle * x - sinAngle * y;
+        int16_t yTransformed = y0 + sinAngle * x + cosAngle * y;
+
+        ST7789_DrawPixel(xTransformed, yTransformed, color);
+    }
+}
+//==============================================================================
+
+
+//==============================================================================
+// рисуем элипс закрашенный
+//==============================================================================
+void ST7789_DrawEllipseFilled(int16_t x0, int16_t y0, int16_t radiusX, int16_t radiusY, uint16_t color) {
+	int x, y;
+
+	for (y = -radiusY; y <= radiusY; y++) {
+			for (x = -radiusX; x <= radiusX; x++) {
+					if ((x * x * radiusY * radiusY + y * y * radiusX * radiusX) <= (radiusX * radiusX * radiusY * radiusY)) {
+							ST7789_DrawPixel(x0 + x, y0 + y, color);
+					}
+			}
+	}
+}
+//==============================================================================
+
+
+//==============================================================================
+// рисуем элипс закрашенный под указаным углом наклона
+//==============================================================================
+void ST7789_DrawEllipseFilledWithAngle(int16_t x0, int16_t y0, int16_t radiusX, int16_t radiusY, float angle_degrees, uint16_t color) {
+   float cosAngle = cos((360.0 - angle_degrees) * PI / 180.0);
+    float sinAngle = sin((360.0 - angle_degrees) * PI / 180.0);
+
+    for (int16_t y = -radiusY; y <= radiusY; y++) {
+        for (int16_t x = -radiusX; x <= radiusX; x++) {
+          float xTransformed = cosAngle * x - sinAngle * y;
+          float yTransformed = sinAngle * x + cosAngle * y;
+
+					if ((x * x * radiusY * radiusY + y * y * radiusX * radiusX) <= (radiusX * radiusX * radiusY * radiusY)){
+             ST7789_DrawPixel(x0 + xTransformed, y0  + yTransformed, color);
+          }
+        }
+    }
 }
 //==============================================================================
 
@@ -1161,6 +1273,187 @@ void ST7789_print(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColor, 
 		}
 		
 		x = x + (Font->FontWidth * multiplier);
+		/* Increase string pointer */
+		str++;
+	}
+}
+//==============================================================================
+
+
+//==============================================================================
+// Процедура рисования символа с указаным углом ( 1 буква или знак )
+//==============================================================================
+void ST7789_DrawCharWithAngle(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColor, uint8_t TransparentBg, FontDef_t* Font, uint8_t multiplier, double angle_degrees, unsigned char ch){
+	
+	uint32_t i, b, j;
+	
+	uint32_t X = x, Y = y;
+	
+	uint8_t xx, yy;
+	
+	// Преобразуем угол в радианы
+	double radians = (360.0 - angle_degrees) * PI / 180.0;
+
+	// Вычисляем матрицу поворота
+	double cosTheta = cos(radians);
+	double sinTheta = sin(radians);
+
+	// Переменные для преобразованных координат
+	double newX, newY;
+	
+	if( multiplier < 1 ){
+		multiplier = 1;
+	}
+
+	/* Check available space in LCD */
+	if (ST7789_Width >= ( x + Font->FontWidth) || ST7789_Height >= ( y + Font->FontHeight)){
+
+			/* Go through font */
+			for (i = 0; i < Font->FontHeight; i++) {		
+				
+				if( ch < 127 ){			
+					b = Font->data[(ch - 32) * Font->FontHeight + i];
+				}
+				
+				else if( (uint8_t) ch > 191 ){
+					// +96 это так как латинские символы и знаки в шрифтах занимают 96 позиций
+					// и если в шрифте который содержит сперва латиницу и спец символы и потом 
+					// только кирилицу то нужно добавлять 95 если шрифт 
+					// содержит только кирилицу то +96 не нужно
+					b = Font->data[((ch - 192) + 96) * Font->FontHeight + i];
+				}
+				
+				else if( (uint8_t) ch == 168 ){	// 168 символ по ASCII - Ё
+					// 160 эллемент ( символ Ё ) 
+					b = Font->data[( 160 ) * Font->FontHeight + i];
+				}
+				
+				else if( (uint8_t) ch == 184 ){	// 184 символ по ASCII - ё
+					// 161 эллемент  ( символ ё ) 
+					b = Font->data[( 161 ) * Font->FontHeight + i];
+				}
+				//-------------------------------------------------------------------
+				
+				//----  Украинская раскладка ----------------------------------------------------
+				else if( (uint8_t) ch == 170 ){	// 168 символ по ASCII - Є
+					// 162 эллемент ( символ Є )
+					b = Font->data[( 162 ) * Font->FontHeight + i];
+				}
+				else if( (uint8_t) ch == 175 ){	// 184 символ по ASCII - Ї
+					// 163 эллемент  ( символ Ї )
+					b = Font->data[( 163 ) * Font->FontHeight + i];
+				}
+				else if( (uint8_t) ch == 178 ){	// 168 символ по ASCII - І
+					// 164 эллемент ( символ І )
+					b = Font->data[( 164 ) * Font->FontHeight + i];
+				}
+				else if( (uint8_t) ch == 179 ){	// 184 символ по ASCII - і
+					// 165 эллемент  ( символ і )
+					b = Font->data[( 165 ) * Font->FontHeight + i];
+				}
+				else if( (uint8_t) ch == 186 ){	// 184 символ по ASCII - є
+					// 166 эллемент  ( символ є )
+					b = Font->data[( 166 ) * Font->FontHeight + i];
+				}
+				else if( (uint8_t) ch == 191 ){	// 168 символ по ASCII - ї
+					// 167 эллемент ( символ ї )
+					b = Font->data[( 167 ) * Font->FontHeight + i];
+				}
+				//-----------------------------------------------------------------------------
+			
+				for (j = 0; j < Font->FontWidth; j++) {
+					if ((b << j) & 0x8000) {
+							// Применяем поворот к координатам
+							newX = cosTheta * (X - x) - sinTheta * (Y - y) + x;
+							newY = sinTheta * (X - x) + cosTheta * (Y - y) + y;
+
+							for (yy = 0; yy < multiplier; yy++) {
+									for (xx = 0; xx < multiplier; xx++) {
+											ST7789_DrawPixel(newX + xx, newY + yy, TextColor);
+									}
+							}
+					} else if (TransparentBg) {
+							// Аналогично для фона
+							newX = cosTheta * (X - x) - sinTheta * (Y - y) + x + 0.5;
+							newY = sinTheta * (X - x) + cosTheta * (Y - y) + y + 0.5;
+
+							for (yy = 0; yy < multiplier; yy++) {
+									for (xx = 0; xx < multiplier; xx++) {
+											ST7789_DrawPixel(newX + xx, newY + yy, BgColor);
+									}
+							}
+					}
+					X = X + multiplier;
+				}
+				X = x;
+				Y = Y + multiplier;
+			}
+	}
+}
+//==============================================================================
+
+
+//==============================================================================
+// Процедура рисования строки с указаным углом
+//==============================================================================
+void ST7789_printWithAngle(uint16_t x, uint16_t y, uint16_t TextColor, uint16_t BgColor, uint8_t TransparentBg, FontDef_t* Font, uint8_t multiplier, double angle_degrees, char *str){	
+	
+	if( multiplier < 1 ){
+		multiplier = 1;
+	}
+	
+	unsigned char buff_char;
+	
+	uint16_t len = strlen(str);
+	
+	while (len--) {
+		
+		//---------------------------------------------------------------------
+		// проверка на кириллицу UTF-8, если латиница то пропускаем if
+		// Расширенные символы ASCII Win-1251 кириллица (код символа 128-255)
+		// проверяем первый байт из двух ( так как UTF-8 ето два байта )
+		// если он больше либо равен 0xC0 ( первый байт в кириллеце будет равен 0xD0 либо 0xD1 именно в алфавите )
+		if ( (uint8_t)*str >= 0xC0 ){	// код 0xC0 соответствует символу кириллица 'A' по ASCII Win-1251
+			
+			// проверяем какой именно байт первый 0xD0 либо 0xD1---------------------------------------------
+			switch ((uint8_t)*str) {
+				case 0xD0: {
+					// увеличиваем массив так как нам нужен второй байт
+					str++;
+					// проверяем второй байт там сам символ
+					if ((uint8_t)*str >= 0x90 && (uint8_t)*str <= 0xBF){ buff_char = (*str) + 0x30; }	// байт символов А...Я а...п  делаем здвиг на +48
+					else if ((uint8_t)*str == 0x81) { buff_char = 0xA8; break; }		// байт символа Ё ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x84) { buff_char = 0xAA; break; }		// байт символа Є ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x86) { buff_char = 0xB2; break; }		// байт символа І ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x87) { buff_char = 0xAF; break; }		// байт символа Ї ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					break;
+				}
+				case 0xD1: {
+					// увеличиваем массив так как нам нужен второй байт
+					str++;
+					// проверяем второй байт там сам символ
+					if ((uint8_t)*str >= 0x80 && (uint8_t)*str <= 0x8F){ buff_char = (*str) + 0x70; }	// байт символов п...я	елаем здвиг на +112
+					else if ((uint8_t)*str == 0x91) { buff_char = 0xB8; break; }		// байт символа ё ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x94) { buff_char = 0xBA; break; }		// байт символа є ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x96) { buff_char = 0xB3; break; }		// байт символа і ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					else if ((uint8_t)*str == 0x97) { buff_char = 0xBF; break; }		// байт символа ї ( если нужнф еще символы добавляем тут и в функции DrawChar() )
+					break;
+				}
+			}
+			//------------------------------------------------------------------------------------------------
+			// уменьшаем еще переменную так как израсходывали 2 байта для кириллицы
+			len--;
+			
+			ST7789_DrawCharWithAngle(x, y, TextColor, BgColor, TransparentBg, Font, multiplier, angle_degrees, buff_char);
+		}
+		//---------------------------------------------------------------------
+		else{
+			ST7789_DrawCharWithAngle(x, y, TextColor, BgColor, TransparentBg, Font, multiplier, angle_degrees, *str);
+		}
+		// Смещаем начальные координаты с каждым символом с учетом угла
+    x += (Font->FontWidth * multiplier * cos((360.0 - angle_degrees) * PI / 180.0) + 0.5);
+    y += (Font->FontWidth * multiplier * sin((360.0 - angle_degrees) * PI / 180.0) + 0.5);
+
 		/* Increase string pointer */
 		str++;
 	}
@@ -1353,8 +1646,54 @@ void ST7789_DrawBitmap(int16_t x, int16_t y, const unsigned char* bitmap, int16_
             }
 			
             if(byte & 0x80){
-				ST7789_DrawPixel(x+i, y, color);
-			}
+							ST7789_DrawPixel(x+i, y, color);
+						}
+        }
+    }
+}
+//==============================================================================
+
+
+//==============================================================================
+// Процедура рисования иконки монохромной с указаным углом
+//==============================================================================
+void ST7789_DrawBitmapWithAngle(int16_t x, int16_t y, const unsigned char* bitmap, int16_t w, int16_t h, uint16_t color, double angle_degrees) {
+    // Преобразование угла в радианы
+    double angle_radians = (360.0 - angle_degrees) * PI / 180.0;
+
+    // Вычисление матрицы поворота
+    double cosTheta = cos(angle_radians);
+    double sinTheta = sin(angle_radians);
+
+    // Ширина и высота повернутого изображения
+    int16_t rotatedW = round(fabs(w * cosTheta) + fabs(h * sinTheta));
+    int16_t rotatedH = round(fabs(h * cosTheta) + fabs(w * sinTheta));
+
+    // Вычисление центральных координат повернутого изображения
+    int16_t centerX = x + w / 2;
+    int16_t centerY = y + h / 2;
+
+    // Проходим по каждому пикселю изображения и рисуем его повернутым
+    for (int16_t j = 0; j < h; j++) {
+        for (int16_t i = 0; i < w; i++) {
+            // Вычисление смещения от центра
+            int16_t offsetX = i - w / 2;
+            int16_t offsetY = j - h / 2;
+
+            // Применение матрицы поворота
+            int16_t rotatedX = round(centerX + offsetX * cosTheta - offsetY * sinTheta);
+            int16_t rotatedY = round(centerY + offsetX * sinTheta + offsetY * cosTheta);
+
+            // Проверка находится ли пиксель в пределах экрана
+            if (rotatedX >= 0 && rotatedX < ST7789_Width && rotatedY >= 0 && rotatedY < ST7789_Height) {
+                // Получение цвета пикселя из исходного изображения
+                uint8_t byteWidth = (w + 7) / 8;
+                uint8_t byte = (*(const unsigned char*)(&bitmap[j * byteWidth + i / 8]));
+                if (byte & (0x80 >> (i & 7))) {
+                    // Рисование пикселя на экране
+                    ST7789_DrawPixel(rotatedX, rotatedY, color);
+                }
+            }
         }
     }
 }
@@ -1529,242 +1868,116 @@ void ST7789_DrawLineThick(int16_t x1, int16_t y1, int16_t x2, int16_t y2, uint16
 }
 //==============================================================================		
 
+
+//==============================================================================
+// линия толстая нужной длины и указаным углом поворота (0-360) ( последний параметр толшина )
+//==============================================================================
+void ST7789_DrawLineThickWithAngle(int16_t x, int16_t y, int16_t length, double angle_degrees, uint16_t color, uint8_t thick) {
+    double angleRad = (360.0 - angle_degrees) * PI / 180.0;
+    int16_t x2 = x + (int16_t)(cos(angleRad) * length) + 0.5;
+    int16_t y2 = y + (int16_t)(sin(angleRad) * length) + 0.5;
+
+    ST7789_DrawLineThick(x, y, x2, y2, color, thick);
+}
+//==============================================================================
+
+
 //==============================================================================
 // Процедура рисования дуга толстая ( часть круга )
 //==============================================================================
 void ST7789_DrawArc(int16_t x0, int16_t y0, int16_t radius, int16_t startAngle, int16_t endAngle, uint16_t color, uint8_t thick) {
 	
-	int16_t xLast = -1, yLast = -1;
-	startAngle -= 90;
-	endAngle -= 90;
+    int16_t xLast = -1, yLast = -1;
 
-	for (int16_t angle = startAngle; angle <= endAngle; angle += 2) {
-		float angleRad = (float) angle * PI / 180;
-		int x = cos(angleRad) * radius + x0;
-		int y = sin(angleRad) * radius + y0;
+    if (startAngle > endAngle) {
+        // Рисование первой части дуги от startAngle до 360 градусов
+        for (int16_t angle = startAngle; angle <= 360; angle += 2) {
+            float angleRad = (float)(360 - angle) * PI / 180;
+            int x = cos(angleRad) * radius + x0;
+            int y = sin(angleRad) * radius + y0;
 
-		if (xLast == -1 || yLast == -1) {
-			xLast = x;
-			yLast = y;
-			continue;
-		}
+            if (xLast != -1 && yLast != -1) {
+                if (thick > 1) {
+                    ST7789_DrawLineThick(xLast, yLast, x, y, color, thick);
+                } else {
+                    ST7789_DrawLine(xLast, yLast, x, y, color);
+                }
+            }
 
-		if (thick > 1){
-			ST7789_DrawLineThick(xLast, yLast, x, y, color, thick);
-		}
-		else{
-			ST7789_DrawLine(xLast, yLast, x, y, color);
-		}
+            xLast = x;
+            yLast = y;
+        }
 
-		xLast = x;
-		yLast = y;
+        // Рисование второй части дуги от 0 до endAngle
+        for (int16_t angle = 0; angle <= endAngle; angle += 2) {
+            float angleRad = (float)(360 - angle) * PI / 180;
+            int x = cos(angleRad) * radius + x0;
+            int y = sin(angleRad) * radius + y0;
+
+            if (xLast != -1 && yLast != -1) {
+                if (thick > 1) {
+                    ST7789_DrawLineThick(xLast, yLast, x, y, color, thick);
+                } else {
+                    ST7789_DrawLine(xLast, yLast, x, y, color);
+                }
+            }
+
+            xLast = x;
+            yLast = y;
+        }
+    } else {
+        // Рисование дуги от startAngle до endAngle
+        for (int16_t angle = startAngle; angle <= endAngle; angle += 2) {
+            float angleRad = (float)(360 - angle) * PI / 180;
+            int x = cos(angleRad) * radius + x0;
+            int y = sin(angleRad) * radius + y0;
+
+            if (xLast != -1 && yLast != -1) {
+                if (thick > 1) {
+                    ST7789_DrawLineThick(xLast, yLast, x, y, color, thick);
+                } else {
+                    ST7789_DrawLine(xLast, yLast, x, y, color);
+                }
+            }
+
+            xLast = x;
+            yLast = y;
+        }
+    }
+}
+//==============================================================================
+
+
+#if FRAME_BUFFER
+	//==============================================================================
+	// Процедура вывода буффера кадра на дисплей
+	//==============================================================================
+	void ST7789_Update(void){
+		
+			ST7789_SetWindow(0, 0, ST7789_Width-1, ST7789_Height-1);
+		
+			ST7789_Select();
+		
+			ST7789_SendDataMASS((uint8_t*)buff_frame, sizeof(uint16_t)*ST7789_Width*ST7789_Height);
+		
+			ST7789_Unselect();
 	}
-}
-//==============================================================================
+	//==============================================================================
+	
+	//==============================================================================
+	// Процедура очистка только буфера кадра  ( при етом сам экран не очищаеться )
+	//==============================================================================
+	void ST7789_ClearFrameBuffer(void){
+		memset((uint8_t*)buff_frame, 0x00, ST7789_Width*ST7789_Height*sizeof(uint16_t) );
+	}
+	//==============================================================================
+#endif
 
 
 
-
-
-
-
-
-////==============================================================================
-//// Процедура вывода буффера кадра на дисплей
-////==============================================================================
-//// нужно создать сам буфер глобально uint16_t buff_frame[ST7789_WIDTH*ST7789_HEIGHT];
-//void ST7789_Update(uint16_t color) {
-//	
-//	for( uint16_t i =0; i < ST7789_Width*ST7789_Height; i ++ ){
-//		buff_frame[i] = color;
-//	}
-//	
-//    ST7789_SetWindow(0, 0, ST7789_Width, ST7789_Height);
-//	
-//	ST7789_Select();
-//	
-//    ST7789_SendDataMASS((uint8_t*)buff_frame, sizeof(uint16_t)*ST7789_Width*ST7789_Height);
-//	
-//    ST7789_Unselect();
-//}
-////==============================================================================
 
 //#########################################################################################################################
 //#########################################################################################################################
-
-/*
-
-//==============================================================================
-
-
-//==============================================================================
-// Тест поочерёдно выводит на дисплей картинки с SD-флешки
-//==============================================================================
-void Test_displayImage(const char* fname)
-{
-  FRESULT res;
-  
-  FIL file;
-  res = f_open(&file, fname, FA_READ);
-  if (res != FR_OK)
-    return;
-
-  unsigned int bytesRead;
-  uint8_t header[34];
-  res = f_read(&file, header, sizeof(header), &bytesRead);
-  if (res != FR_OK) 
-  {
-    f_close(&file);
-    return;
-  }
-
-  if ((header[0] != 0x42) || (header[1] != 0x4D))
-  {
-    f_close(&file);
-    return;
-  }
-
-  uint32_t imageOffset = header[10] | (header[11] << 8) | (header[12] << 16) | (header[13] << 24);
-  uint32_t imageWidth  = header[18] | (header[19] << 8) | (header[20] << 16) | (header[21] << 24);
-  uint32_t imageHeight = header[22] | (header[23] << 8) | (header[24] << 16) | (header[25] << 24);
-  uint16_t imagePlanes = header[26] | (header[27] << 8);
-
-  uint16_t imageBitsPerPixel = header[28] | (header[29] << 8);
-  uint32_t imageCompression  = header[30] | (header[31] << 8) | (header[32] << 16) | (header[33] << 24);
-
-  if((imagePlanes != 1) || (imageBitsPerPixel != 24) || (imageCompression != 0))
-  {
-    f_close(&file);
-    return;
-  }
-
-  res = f_lseek(&file, imageOffset);
-  if(res != FR_OK)
-  {
-    f_close(&file);
-    return;
-  }
-
-  // Подготавливаем буфер строки картинки для вывода
-  uint8_t imageRow[(240 * 3 + 3) & ~3];
-  uint16_t PixBuff[240];
-
-  for (uint32_t y = 0; y < imageHeight; y++)
-  {
-    res = f_read(&file, imageRow, (imageWidth * 3 + 3) & ~3, &bytesRead);
-    if (res != FR_OK)
-    {
-      f_close(&file);
-      return;
-    }
-      
-    uint32_t rowIdx = 0;
-    for (uint32_t x = 0; x < imageWidth; x++)
-    {
-      uint8_t b = imageRow[rowIdx++];
-      uint8_t g = imageRow[rowIdx++];
-      uint8_t r = imageRow[rowIdx++];
-      PixBuff[x] = RGB565(r, g, b);
-    }
-
-    dispcolor_DrawPartXY(0, imageHeight - y - 1, imageWidth, 1, PixBuff);
-  }
-
-  f_close(&file);
-}
-//==============================================================================
-
-
-//==============================================================================
-// Тест вывода картинок на дисплей
-//==============================================================================
-void Test240x240_Images(void)
-{
-  FATFS fatfs;
-  DIR DirInfo;
-  FILINFO FileInfo;
-  FRESULT res;
-  
-  res = f_mount(&fatfs, "0", 1);
-  if (res != FR_OK)
-    return;
-  
-  res = f_chdir("/240x240");
-  if (res != FR_OK)
-    return;
-
-  res = f_opendir(&DirInfo, "");
-  if (res != FR_OK)
-    return;
-  
-  while (1)
-  {
-    res = f_readdir(&DirInfo, &FileInfo);
-    if (res != FR_OK)
-      break;
-      
-    if (FileInfo.fname[0] == 0)
-      break;
-      
-    char *pExt = strstr(FileInfo.fname, ".BMP");
-    if (pExt)
-    {
-      Test_displayImage(FileInfo.fname);
-      delay_ms(2000);
-    }
-  }
-}
-//==============================================================================
-
-
-//==============================================================================
-// Процедура заполнения прямоугольной области из буфера. Порядок заполнения экрана Y - X
-//==============================================================================
-void ST77xx_DrawPartYX(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pBuff)
-{
-  if ((x >= ST77xx_Width) || (y >= ST77xx_Height))
-    return;
-  
-  if ((x + w - 1) >= ST77xx_Width)
-    w = ST77xx_Width - x;
-  
-  if ((y + h - 1) >= ST77xx_Height)
-    h = ST77xx_Height - y;
-
-  ST77xx_SetWindow(x, y, x + w - 1, y + h - 1);
-
-  for (uint32_t i = 0; i < (h * w); i++)
-    ST77xx_RamWrite(pBuff++, 1);
-}
-//==============================================================================
-
-
-//==============================================================================
-// Процедура заполнения прямоугольной области из буфера. Порядок заполнения экрана X - Y
-//==============================================================================
-void ST77xx_DrawPartXY(int16_t x, int16_t y, int16_t w, int16_t h, uint16_t *pBuff)
-{
-  if ((x >= ST77xx_Width) || (y >= ST77xx_Height))
-    return;
-  
-  if ((x + w - 1) >= ST77xx_Width)
-    w = ST77xx_Width - x;
-  
-  if ((y + h - 1) >= ST77xx_Height)
-    h = ST77xx_Height - y;
-
-  for (uint16_t iy = y; iy < y + h; iy++)
-  {
-    ST77xx_SetWindow(x, iy, x + w - 1, iy + 1);
-    for (x = w; x > 0; x--)
-      ST77xx_RamWrite(pBuff++, 1);
-  }
-}
-//==============================================================================
-
-//########################################################################################################
-
-*/
 
 
 
