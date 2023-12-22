@@ -53,11 +53,11 @@ static const uint8_t init_cmds[] = {
 		ST7789_MADCTL , 1,                 	// 4: Memory access ctrl (directions), 1 arg:
 		  ST7789_ROTATION,                  //    Row addr/col addr, bottom to top refresh
 		ST7789_CASET  , 4,                 	// 5: Column addr set, 4 args, no delay:
-		  ST7789_XSTART>>8,ST7789_XSTART&0xff,  //    XSTART = 0
-		  ST7789_WIDTH>>8,ST7789_WIDTH&0xff,    //    XEND = 240
+		  ST7789_XSTART>>8,ST7789_XSTART&0xff,  //    XSTART = 0>>8, 0&0xff,
+		  (ST7789_WIDTH-1)>>8,(ST7789_WIDTH-1)&0xff,    //    XEND = (320-1)>>8,(320-1)&0xff,
 		ST7789_RASET  , 4,                 	// 6: Row addr set, 4 args, no delay:
-		  ST7789_YSTART>>8,ST7789_YSTART&0xff,  //    YSTART = 0
-		  ST7789_HEIGHT>>8,ST7789_HEIGHT&0xff,  //    YEND = 240   320>>8,320&0xff,
+		  ST7789_YSTART>>8,ST7789_YSTART&0xff,  //    YSTART = 0>>8, 0&0xff,
+		  (ST7789_HEIGHT-1)>>8,(ST7789_HEIGHT-1)&0xff,  //    YEND = (320-1)>>8,(320-1)&0xff,
 		ST7789_INVON ,   DELAY,     		// 7: Inversion ON
 		  10,
 		ST7789_NORON  ,   DELAY,    		// 8: Normal display on, no args, w/delay
