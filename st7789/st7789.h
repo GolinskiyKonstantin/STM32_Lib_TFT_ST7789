@@ -91,7 +91,8 @@ extern C {
 		//-- нужное оставляем другое коментируем ( важно должно быть только один выбран )---------
 		
 		//#define	ST7789_IS_135X240		// 1.14" 135 x 240 ST7789 
-		#define	ST7789_IS_240X240		// 1.3" 240 x 240 ST7789 		
+		#define	ST7789_IS_240X240		// 1.3" 240 x 240 ST7789 
+		//#define	ST7789_IS_172X320		// 1.47" 172 x 320 ST7789 
 		//#define	ST7789_IS_240X320		// 2" 240 x 320 ST7789
 		
 		//=============================================================================
@@ -165,12 +166,12 @@ extern uint16_t ST7789_Y_Start;
 	// 1.3" 240 x 240 ST7789  display, default orientation
 
 #ifdef ST7789_IS_240X240
-	
+
 	#define ST7789_WIDTH  			240
 	#define ST7789_HEIGHT 			240
 	#define ST7789_XSTART 			0
 	#define ST7789_YSTART 			0
-	#define ST7789_ROTATION 		(ST7789_MADCTL_MV|ST7789_MADCTL_ML|ST7789_MADCTL_MH)
+	#define ST7789_ROTATION 		(ST7789_MADCTL_RGB)
 	
 #endif
 	
@@ -182,12 +183,32 @@ extern uint16_t ST7789_Y_Start;
 	// 1.14" 135 x 240 ST7789  display, default orientation
 
 #ifdef ST7789_IS_135X240
-	
+
 	#define ST7789_WIDTH  			135
 	#define ST7789_HEIGHT 			240
+	#define ST7789_XSTART 			52
+	#define ST7789_YSTART 			40
+	#define ST7789_ROTATION 		(ST7789_MADCTL_RGB)
+	
+#endif
+	
+//##############################################################################
+
+
+//##############################################################################
+
+
+//###  параметры дисплея 1.47" 172 x 320 ST7789 ###################################
+
+	// 1.47" 172 x 320 ST7789 display, default orientation
+		
+#ifdef ST7789_IS_172X320
+	
+	#define ST7789_WIDTH  			320
+	#define ST7789_HEIGHT 			172
 	#define ST7789_XSTART 			0
-	#define ST7789_YSTART 			0
-	#define ST7789_ROTATION 		(ST7789_MADCTL_MV|ST7789_MADCTL_ML|ST7789_MADCTL_MH)
+	#define ST7789_YSTART 			34
+	#define ST7789_ROTATION 		(ST7789_MADCTL_MX | ST7789_MADCTL_MV | ST7789_MADCTL_RGB)
 	
 #endif
 	
@@ -199,12 +220,12 @@ extern uint16_t ST7789_Y_Start;
 	// 2" 240 x 320 ST7789  display, default orientation
 
 #ifdef ST7789_IS_240X320
-	
+
 	#define ST7789_WIDTH  			240
 	#define ST7789_HEIGHT 			320
 	#define ST7789_XSTART 			0
 	#define ST7789_YSTART 			0
-	#define ST7789_ROTATION 		(ST7789_MADCTL_MV|ST7789_MADCTL_ML|ST7789_MADCTL_MH)
+	#define ST7789_ROTATION 		(ST7789_MADCTL_RGB)
 	
 #endif
 	

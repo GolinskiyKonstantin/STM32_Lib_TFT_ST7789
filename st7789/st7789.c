@@ -51,13 +51,13 @@ static const uint8_t init_cmds[] = {
 		  (ST7789_ColorMode_65K | ST7789_ColorMode_16bit),           //    16-bit color 0x55
 		  10,                             	//    10 ms delay
 		ST7789_MADCTL , 1,                 	// 4: Memory access ctrl (directions), 1 arg:
-		  0x00,                           	//    Row addr/col addr, bottom to top refresh
+		  ST7789_ROTATION,                  //    Row addr/col addr, bottom to top refresh
 		ST7789_CASET  , 4,                 	// 5: Column addr set, 4 args, no delay:
-		  0,0,                             	//    XSTART = 0
-		  0,240,                           	//    XEND = 240
+		  ST7789_XSTART>>8,ST7789_XSTART&0xff,  //    XSTART = 0
+		  ST7789_WIDTH>>8,ST7789_WIDTH&0xff,    //    XEND = 240
 		ST7789_RASET  , 4,                 	// 6: Row addr set, 4 args, no delay:
-		  0,0,                             	//    YSTART = 0
-		  320>>8,320&0xff,                 	//    YEND = 240   320>>8,320&0xff,
+		  ST7789_YSTART>>8,ST7789_YSTART&0xff,  //    YSTART = 0
+		  ST7789_HEIGHT>>8,ST7789_HEIGHT&0xff,  //    YEND = 240   320>>8,320&0xff,
 		ST7789_INVON ,   DELAY,     		// 7: Inversion ON
 		  10,
 		ST7789_NORON  ,   DELAY,    		// 8: Normal display on, no args, w/delay
@@ -1499,6 +1499,17 @@ void ST7789_rotation( uint8_t rotation ){
 			#endif
 			//==========================================================================
 			
+			//== 1.47" 172 x 320 ST7789 =================================================
+			#ifdef ST7789_IS_172X320
+				ST7789_SendData(ST7789_MADCTL_MX | ST7789_MADCTL_MV | ST7789_MADCTL_RGB);
+				ST7789_Width = 320;
+				ST7789_Height = 172;
+				ST7789_X_Start = 0;
+				ST7789_Y_Start = 34;
+				ST7789_FillScreen(0);
+			#endif
+			//==========================================================================
+			
 			//== 2" 240 x 320 ST7789 =================================================
 			#ifdef ST7789_IS_240X320
 				ST7789_SendData(ST7789_MADCTL_RGB);
@@ -1529,6 +1540,17 @@ void ST7789_rotation( uint8_t rotation ){
 				ST7789_Width = 240;
 				ST7789_Height = 240;		
 				ST7789_X_Start = 0;
+				ST7789_Y_Start = 0;
+				ST7789_FillScreen(0);
+			#endif
+			//==========================================================================
+			
+			//== 1.47" 172 x 320 ST7789 =================================================
+			#ifdef ST7789_IS_172X320
+				ST7789_SendData(ST7789_MADCTL_MX | ST7789_MADCTL_MY | ST7789_MADCTL_RGB);
+				ST7789_Width = 172;
+				ST7789_Height = 320;
+				ST7789_X_Start = 34;
 				ST7789_Y_Start = 0;
 				ST7789_FillScreen(0);
 			#endif
@@ -1569,6 +1591,17 @@ void ST7789_rotation( uint8_t rotation ){
 			#endif
 			//==========================================================================
 	   
+			//== 1.47" 172 x 320 ST7789 =================================================
+			#ifdef ST7789_IS_172X320
+				ST7789_SendData(ST7789_MADCTL_MY | ST7789_MADCTL_MV | ST7789_MADCTL_RGB);
+				ST7789_Width = 320;
+				ST7789_Height = 172;
+				ST7789_X_Start = 0;
+				ST7789_Y_Start = 34;
+				ST7789_FillScreen(0);
+			#endif
+			//==========================================================================
+			
 			//== 2" 240 x 320 ST7789 =================================================
 			#ifdef ST7789_IS_240X320
 				ST7789_SendData(ST7789_MADCTL_MX | ST7789_MADCTL_MY | ST7789_MADCTL_RGB);
@@ -1605,6 +1638,17 @@ void ST7789_rotation( uint8_t rotation ){
 			#endif
 			//==========================================================================
 	   
+		  //== 1.47" 172 x 320 ST7789 =================================================
+			#ifdef ST7789_IS_172X320
+				ST7789_SendData(ST7789_MADCTL_RGB);
+				ST7789_Width = 172;
+				ST7789_Height = 320;
+				ST7789_X_Start = 34;
+				ST7789_Y_Start = 0;
+				ST7789_FillScreen(0);
+			#endif
+			//==========================================================================
+			
 			//== 2" 240 x 320 ST7789 =================================================
 			#ifdef ST7789_IS_240X320
 				ST7789_SendData(ST7789_MADCTL_MY | ST7789_MADCTL_MV | ST7789_MADCTL_RGB);
@@ -1978,6 +2022,7 @@ void ST7789_DrawArc(int16_t x0, int16_t y0, int16_t radius, int16_t startAngle, 
 
 //#########################################################################################################################
 //#########################################################################################################################
+
 
 
 
