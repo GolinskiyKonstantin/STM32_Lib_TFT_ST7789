@@ -1510,6 +1510,17 @@ void ST7789_rotation( uint8_t rotation ){
 			#endif
 			//==========================================================================
 			
+			//== 1.69" 240 x 280 ST7789 =================================================
+			#ifdef ST7789_IS_240X280
+				ST7789_SendData(ST7789_MADCTL_RGB);
+				ST7789_Width = 240;
+				ST7789_Height = 280;
+				ST7789_X_Start = 0;
+				ST7789_Y_Start = 20;
+				ST7789_FillScreen(0);
+			#endif
+			//==========================================================================
+			
 			//== 2" 240 x 320 ST7789 =================================================
 			#ifdef ST7789_IS_240X320
 				ST7789_SendData(ST7789_MADCTL_RGB);
@@ -1551,6 +1562,17 @@ void ST7789_rotation( uint8_t rotation ){
 				ST7789_Width = 172;
 				ST7789_Height = 320;
 				ST7789_X_Start = 34;
+				ST7789_Y_Start = 0;
+				ST7789_FillScreen(0);
+			#endif
+			//==========================================================================
+			
+			//== 1.69" 240 x 280 ST7789 =================================================
+			#ifdef ST7789_IS_240X280
+				ST7789_SendData(ST7789_MADCTL_MX | ST7789_MADCTL_MV | ST7789_MADCTL_RGB);
+				ST7789_Width = 280;
+				ST7789_Height = 240;
+				ST7789_X_Start = 20;
 				ST7789_Y_Start = 0;
 				ST7789_FillScreen(0);
 			#endif
@@ -1602,6 +1624,17 @@ void ST7789_rotation( uint8_t rotation ){
 			#endif
 			//==========================================================================
 			
+			//== 1.69" 240 x 280 ST7789 =================================================
+			#ifdef ST7789_IS_240X280
+				ST7789_SendData(ST7789_MADCTL_MX | ST7789_MADCTL_MY | ST7789_MADCTL_RGB);
+				ST7789_Width = 240;
+				ST7789_Height = 280;
+				ST7789_X_Start = 0;
+				ST7789_Y_Start = 20;
+				ST7789_FillScreen(0);
+			#endif
+			//==========================================================================
+			
 			//== 2" 240 x 320 ST7789 =================================================
 			#ifdef ST7789_IS_240X320
 				ST7789_SendData(ST7789_MADCTL_MX | ST7789_MADCTL_MY | ST7789_MADCTL_RGB);
@@ -1644,6 +1677,17 @@ void ST7789_rotation( uint8_t rotation ){
 				ST7789_Width = 172;
 				ST7789_Height = 320;
 				ST7789_X_Start = 34;
+				ST7789_Y_Start = 0;
+				ST7789_FillScreen(0);
+			#endif
+			//==========================================================================
+			
+			//== 1.69" 240 x 280 ST7789 =================================================
+			#ifdef ST7789_IS_240X280
+				ST7789_SendData(ST7789_MADCTL_MY | ST7789_MADCTL_MV | ST7789_MADCTL_RGB);
+				ST7789_Width = 280;
+				ST7789_Height = 240;
+				ST7789_X_Start = 20;
 				ST7789_Y_Start = 0;
 				ST7789_FillScreen(0);
 			#endif
