@@ -13,4 +13,4 @@ STM32 Display ST7789  135x240  240x240  172x320  240x280  240x320 76x284
 
 IMG_to_HEX_converter.py - конвертор цветного изображения в массив.
 
-По всем вопросам пишите: golinskiy.konstantin@gmail.com
+По всем вопросам пишите: kostiantyn.holinskyi@gmail.com
